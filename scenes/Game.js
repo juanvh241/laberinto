@@ -72,8 +72,12 @@ export default class Game extends Phaser.Scene {
     this.cursors = this.input.keyboard.createCursorKeys();
     this.keyR = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
 
-    platformLayer.setCollisionByProperty({ colision: true });
+    platformLayer.setCollisionByExclusion([-1]); // Exclude tiles with -1 index (no collision)
     this.physics.add.collider(this.player, platformLayer);
+
+    // camaras
+    this.cameras.main.setBounds(0, 0, map.widthInPixels, map.heightInPixels);
+    this.cameras.main.startFollow(this.player);
 
     // tiles marked as colliding
     /*
