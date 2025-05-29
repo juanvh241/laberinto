@@ -6,6 +6,9 @@ export default class Game extends Phaser.Scene {
   }
 
   init() {
+  this.troncosRecolectados = 0;
+  this.puntaje = 0;
+  this.totalTroncos = 8; // fijo
   }
 
   preload() {
@@ -15,29 +18,117 @@ export default class Game extends Phaser.Scene {
       frameWidth: 32,
       frameHeight: 32,
     });
+    this.load.image("bandera", "public/assets/bandera.png");
+    this.load.image("tronco", "public/assets/tronco.png");
   }
 
-  create() {
+  create(data) {
     const map = this.make.tilemap({ key: "laberinto" });
 
-    // Parameters are the name you gave the tileset in Tiled and then the key of the tileset image in
-    // Phaser's cache (i.e. the name you used in preload)
-    const tileset = map.addTilesetImage("assets laberinto", "tileset");
+  // Leer cuántas veces ganó, o iniciar en 0 si es la primera vez
+  this.victorias = this.registry.get("victorias") || 0;
+
+  // Lista de posiciones para respawn según cantidad de victorias
+  const posiciones = [
+    { x: 34, y: 78 },     // Posición inicial por defecto
+    { x: 928, y: 366 },     // Primer reinicio
+    { x: 352, y: 756 },     // Segundo reinicio
+  ];
+
+  // Elegir posición según cantidad de victorias
+  const pos = posiciones[this.victorias % posiciones.length];
+
+   const tileset = map.addTilesetImage("assets laberinto", "tileset");
 
     // Parameters: layer name (or index) from Tiled, tileset, x, y
     const belowLayer = map.createLayer("fondo", tileset, 0, 0);
     const platformLayer = map.createLayer("laberinto", tileset, 0, 0);
     const objectsLayer = map.getObjectLayer("Objetos");
 
-    // Find in the Object Layer, the name "dude" and get position
-    const spawnPoint = map.findObject(
-      "jugador",
-      (obj) => obj.name === "elias"
-    );
-    console.log("spawnPoint", spawnPoint);
+  // Crear al jugador en esa posición
+    this.player = this.physics.add.sprite(pos.x, pos.y, "eli");
 
-    this.player = this.physics.add.sprite(spawnPoint.x, spawnPoint.y, "eli");
+  // Resetear variables si hace falta
+  this.troncosRecolectados = 0;
+  this.puntaje = this.registry.get("puntaje") || 0;
+
+
+
+    // Parameters are the name you gave the tileset in Tiled and then the key of the tileset image in
+    // Phaser's cache (i.e. the name you used in preload)
+  
+
+    // Find in the Object Layer, the name "dude" and get position
+    //spawn bandera
+    const spawnBandera = map.findObject( 
+      "meta",
+      (obj) => obj.name === "meta" && obj.properties?.some(p => p.name === "tocable" && p.value)
+    );
+    this.bandera = this.physics.add.sprite(spawnBandera.x, spawnBandera.y, "bandera");
+
+    // spawn troncos
+    const troncos = map.filterObjects("tronco", (obj) => obj.name === "tronco");
+
+    this.troncos = this.physics.add.group();
+
+    troncos.forEach((obj) => {
+      const tronco = this.physics.add.sprite(obj.x, obj.y, "tronco");
+      this.troncos.add(tronco);
+      });
     
+      //recolectar troncos
+
+   this.physics.add.overlap(this.player, this.troncos, (player, tronco) => {
+  tronco.destroy();
+
+  this.troncosRecolectados++;
+  this.puntaje += 100;
+
+  console.log(`Troncos: ${this.troncosRecolectados}/8`);
+  console.log(`Puntos: ${this.puntaje}`);
+
+  if (this.troncosRecolectados === 8) {
+    console.log("¡Recolectaste todos los troncos!");
+  
+  }
+});
+
+// texto de puntos y troncos
+this.uiText = this.add.text(10, 10, '', {
+  fontSize: '14px',
+  //color rojo
+  fill: '#ff0000',
+  fontFamily: 'Arial',
+}).setScrollFactor(0);
+
+this.uiText.setText(`Troncos: 0/8 | Puntos: 0`);
+
+//colision meta y win
+this.physics.add.overlap(this.player, this.bandera, () => {
+  if (this.troncosRecolectados === 8) {
+    console.log("¡Ganaste!");
+
+    // Guardar puntaje global (usamos this.registry para compartir entre escenas)
+    this.registry.set("puntaje", this.puntaje);
+
+    // Resetear troncos recolectados
+    this.troncosRecolectados = 0;
+
+    // Pasar a la siguiente escena
+     this.registry.set("puntaje", this.puntaje);
+
+  // Aumentar contador de victorias
+  let victorias = this.registry.get("victorias") || 0;
+  this.registry.set("victorias", victorias + 1);
+
+  // Reiniciar la misma escena
+  this.scene.restart(); // no hace falta pasar data, usamos registry
+  } else {
+    console.log("Te faltan troncos para ganar");
+  }
+});
+
+
 
     this.anims.create({
       key: "left",
@@ -124,6 +215,7 @@ export default class Game extends Phaser.Scene {
       fill: "#000",
     });
     */
+
   }
 
 update() {
@@ -162,7 +254,10 @@ update() {
       console.log("Phaser.Input.Keyboard.JustDown(this.keyR)");
       this.scene.restart();
     }
+    
+    this.uiText.setText(`Troncos: ${this.troncosRecolectados}/8 | Puntos: ${this.puntaje}`);
   }
+  
   /*
   collectStar(player, star) {
     star.disableBody(true, true);
