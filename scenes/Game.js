@@ -52,6 +52,22 @@ export default class Game extends Phaser.Scene {
   this.troncosRecolectados = 0;
   this.puntaje = this.registry.get("puntaje") || 0;
 
+  //texto ganaste o te faltan troncos
+  this.mensajeTexto = this.add.text(
+  this.cameras.main.centerX, 
+  this.cameras.main.centerY, 
+  '', 
+  {
+    fontSize: '32px',
+    fill: '#ffffff',
+    fontFamily: 'Arial',
+    backgroundColor: '#000000',
+    padding: { x: 10, y: 5 },
+    align: 'center'
+  }
+).setOrigin(0.5).setScrollFactor(0).setDepth(10); // Centrado, fijo y al frente
+this.mensajeTexto.setVisible(false);
+
 
 
     // Parameters are the name you gave the tileset in Tiled and then the key of the tileset image in
@@ -106,25 +122,19 @@ this.uiText.setText(`Troncos: 0/8 | Puntos: 0`);
 //colision meta y win
 this.physics.add.overlap(this.player, this.bandera, () => {
   if (this.troncosRecolectados === 8) {
-    console.log("¡Ganaste!");
-
-    // Guardar puntaje global (usamos this.registry para compartir entre escenas)
+    this.mostrarMensaje("¡Ganaste!", 1500);
+    
+    // Guardar datos y avanzar
     this.registry.set("puntaje", this.puntaje);
+    this.registry.set("victorias", (this.registry.get("victorias") || 0) + 1);
 
-    // Resetear troncos recolectados
-    this.troncosRecolectados = 0;
+    // Esperar 1.5s antes de pasar de escena
+    this.time.delayedCall(1500, () => {
+      this.scene.start("game"); // Reinicia la escena desde otra posición
+    });
 
-    // Pasar a la siguiente escena
-     this.registry.set("puntaje", this.puntaje);
-
-  // Aumentar contador de victorias
-  let victorias = this.registry.get("victorias") || 0;
-  this.registry.set("victorias", victorias + 1);
-
-  // Reiniciar la misma escena
-  this.scene.restart(); // no hace falta pasar data, usamos registry
   } else {
-    console.log("Te faltan troncos para ganar");
+    this.mostrarMensaje("Te faltan troncos", 1000);
   }
 });
 
@@ -258,20 +268,13 @@ update() {
     this.uiText.setText(`Troncos: ${this.troncosRecolectados}/8 | Puntos: ${this.puntaje}`);
   }
   
-  /*
-  collectStar(player, star) {
-    star.disableBody(true, true);
+  mostrarMensaje(texto, duracion = 1000) {
+  this.mensajeTexto.setText(texto);
+  this.mensajeTexto.setVisible(true);
 
-    this.score += 10;
-    this.scoreText.setText(`Score: ${this.score}`);
+  this.time.delayedCall(duracion, () => {
+    this.mensajeTexto.setVisible(false);
+  });
+}
 
-    if (this.stars.countActive(true) === 0) {
-      //  A new batch of stars to collect
-      this.stars.children.iterate(function (child) {
-        child.enableBody(true, child.x, 0, true, true);
-      });
-      
-    }
-  }
-  */
 }
